@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
 
 		/* Pega data e hora do sistema. */
         ticks = time(NULL);
+
         snprintf(sendBuff, sizeof(sendBuff), "%.24s\r\n", ctime(&ticks));
         
         /* Envia resposta ao cliente. */

@@ -11,38 +11,61 @@
 #include <sys/types.h>
 #include <time.h> 
 #include <pthread.h>
+#include <dirent.h>
 
 struct client_data{
     int sk;
     struct sockaddr_in *client_addr;
 };
 
-void * client_handle(void* cd){
+void * client_handle(void* cd) {    
     struct client_data *client = (struct client_data *)cd;
-    char sendBuff[1024];
-    time_t ticks; 
+    int sockfd = 0, n = 0;
+    char sendBuff[1024];    
+    char recvBuff[1024];
+    time_t ticks;     
+    DIR *dp;
 
-    memset(sendBuff, 0, sizeof(sendBuff)); 
+    memset(recvBuff, 0,sizeof(recvBuff));
+    memset(sendBuff, 0, sizeof(sendBuff));  
 
     /* Imprime IP e porta do cliente. */
     printf("Received connection from %s:%d\n", inet_ntoa(client->client_addr->sin_addr), ntohs(client->client_addr->sin_port));
     fflush(stdout);
-
     sleep(1);    
  
-    /* Pega data e hora do sistema. */
-    ticks = time(NULL);
-    snprintf(sendBuff, sizeof(sendBuff), "%.24s\r\n", ctime(&ticks));
+    /* Aguarda o recebimento de dados do servidor. 
+	 * Enquanto n for maior que 0. */
+    while ( (n = recv(client->sk, recvBuff, sizeof(recvBuff)-1, 0)) > 0) {
+        /* Verifica se chegou no final da stirng. Se sim, printa. */
+        if (recvBuff[n] == '\0') {
+            printf("%s\n", recvBuff);
+            fflush(stdout);            
+
+            /* Buscar aqruivo */
+            FILE *fp = fopen(recvBuff, "R");
+
+            /* Avaliar tamanho do arquivo e retornar ao cliente. */
+            if (fp == NULL) {
+                int offx = 4;
+                send(client->sk, (int *)offx, sizeof(offx)+1, 0);
+            }
+            break;
+        }        
+
+        /* Aviso de erro, caso haja. */
+        if(fputs(recvBuff, stdout) == EOF) {
+            perror("fputs");
+        }
+    }     
         
     /* Envia resposta ao cliente. */
-    send(client->sk, sendBuff, strlen(sendBuff)+1, 0);
+    // send(client->sk, sendBuff, strlen(sendBuff)+1, 0);    
 
     /* Fecha conexão com o cliente. */
     close(client->sk);
-
     free(client->client_addr);
     free(client);
-
     return NULL;
 }
 
@@ -84,7 +107,7 @@ int main(int argc, char *argv[])
 
 		/* Aguarda a conexão */	
         cd->sk = accept(listenfd, (struct sockaddr*)cd->client_addr, (socklen_t*)&addrlen); 
-
+        
         pthread_create(&thr, NULL, client_handle, (void *)cd);
         pthread_detach(thr);
 

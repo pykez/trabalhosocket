@@ -11,23 +11,22 @@
 #include <errno.h>
 #include <arpa/inet.h> 
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     int sockfd = 0, n = 0;
     char recvBuff[1024];
+    char sendBuff[1024];    
     struct sockaddr_in serv_addr; 
 
-    if(argc != 2)
-    {
+    if(argc != 2) {
         printf("\n Usage: %s <ip of server> \n",argv[0]);
         return 1;
     } 
 
     memset(recvBuff, 0,sizeof(recvBuff));
-    
+    memset(sendBuff, 0, sizeof(sendBuff));  
+
     /*Cria o Socket */
-    if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
+    if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket");
         return 1;
     } 
@@ -38,27 +37,31 @@ int main(int argc, char *argv[])
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(5000); 
 
-    if(inet_pton(AF_INET, argv[1], &serv_addr.sin_addr)<=0)
-    {
+    if(inet_pton(AF_INET, argv[1], &serv_addr.sin_addr)<=0) {
         perror("inet_pton");
         return 1;
     } 
 
 	/* Conecta ao servidor. */
-    if( connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
+    if( connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     	perror("connect");
        	return 1;
     } 
 
+    /* Criar mensagem com o nome do arquivo desejado */
+        // snprintf(sendBuff, sizeof(sendBuff), "%.24s\r\n", ctime(&ticks));
+    snprintf(sendBuff, sizeof(sendBuff), "%s", "arquivo.txt");
+
+    /* Envia sendBuff ao servidor. */
+    send(sockfd, sendBuff, strlen(sendBuff)+1, 0);    
+
 	/* Aguarda o recebimento de dados do servidor. 
 	 * Enquanto n for maior que 0. */
-    while ( (n = recv(sockfd, recvBuff, sizeof(recvBuff)-1, 0)) > 0)
-    {
+    while ( (n = recv(sockfd, recvBuff, sizeof(recvBuff)-1, 0)) > 0) {
 		/* Coloca null no final da string. */
         recvBuff[n] = '\0';
-        if(fputs(recvBuff, stdout) == EOF)
-        {
+        printf("%s", recvBuff);
+        if(fputs(recvBuff, stdout) == EOF) {
             perror("fputs");
         }
     } 
